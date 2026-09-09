@@ -27,6 +27,7 @@ int main()
     Overlay::Config::Settings requested;
     requested.opacity = 0.37F;
     requested.scale = 1.25F;
+    requested.layout = 0.75F;
     requested.adapter = -1;
     requested.cpuUsage = false;
     requested.fps = false;
@@ -40,7 +41,7 @@ int main()
     actual.Load();
     const bool valid = actual.opacity == requested.opacity && actual.scale == requested.scale &&
         actual.adapter == -1 && !actual.cpuUsage && !actual.fps && !actual.graph &&
-        actual.corner == 3 && actual.gpuClock;
+        actual.corner == 3 && actual.gpuClock && actual.layout == requested.layout;
     std::filesystem::remove(file);
     if (!valid) return 5;
     std::cout << "Background sampling and asynchronous settings round-trip passed\n";

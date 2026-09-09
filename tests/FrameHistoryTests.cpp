@@ -1,4 +1,5 @@
 #include "performance/FrameHistory.h"
+#include "ui/Layout.h"
 
 #include <array>
 #include <cmath>
@@ -16,6 +17,13 @@ void Check(bool valid, const char* what)
 
 int main()
 {
+    using Overlay::UI::CalculateLayout;
+    Check(CalculateLayout(1920, 300, 0, 3).columns == 1, "vertical layout");
+    Check(CalculateLayout(1920, 300, 0.5F, 3).columns == 2, "two-column reflow");
+    Check(CalculateLayout(1920, 300, 1, 3).columns == 3, "horizontal layout");
+    Check(CalculateLayout(700, 300, 1, 3).columns == 2, "screen-limited reflow");
+    Check(CalculateLayout(1920, 300, 1, 1).width == 300, "hidden sections do not leave gaps");
+    Check(CalculateLayout(200, 300, 1, 3).width == 200, "narrow screen clamp");
     Overlay::Performance::FrameHistory history;
     Check(history.Summarize().count == 0, "empty history");
     for (int i = 0; i < 600; ++i) history.Push(1000.0 / 60, 10);

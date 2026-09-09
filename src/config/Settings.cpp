@@ -52,6 +52,7 @@ namespace Overlay::Config
             {L"Opacity", &Settings::opacity, 0, 1},
             {L"Scale", &Settings::scale, 0.4F, 2},
             {L"Width", &Settings::width, 12, 32},
+            {L"Layout", &Settings::layout, 0, 1},
             {L"Margin", &Settings::margin, 0, 200},
             {L"HistorySeconds", &Settings::historySeconds, 1, 60},
             {L"GraphCeiling", &Settings::graphCeiling, 8, 200}

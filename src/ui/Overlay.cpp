@@ -1,4 +1,5 @@
 #include "ui/Overlay.h"
+#include "ui/Layout.h"
 #include "config/Settings.h"
 #include "performance/FrameHistory.h"
 #include "telemetry/Sampler.h"
@@ -143,6 +144,9 @@ namespace Overlay::UI
             }
             Changed(Gui::SliderFloat("Size", &settings.scale, 0.4F, 2, "%.2fx"));
             Changed(Gui::SliderFloat("Width", &settings.width, 12, 32, "%.0f"));
+            Changed(Gui::SliderFloat("Layout", &settings.layout, 0, 1, "%.2f"));
+            Gui::TextDisabled("Vertical  <---->  Horizontal");
+            Gui::TextWrapped("Sections wrap as the overlay widens. Text size stays unchanged.");
             Changed(Gui::SliderFloat("Background opacity", &settings.opacity, 0, 1, "%.2f"));
             Changed(Gui::SliderFloat("Screen margin", &settings.margin, 0, 200, "%.0f px"));
             if (Gui::Button("Restore defaults")) {
@@ -224,9 +228,14 @@ namespace Overlay::UI
             const bool bottom = (settings.corner & 2) != 0;
             const float fontSize = Gui::GetFontSize() * settings.scale;
             const float margin = std::min(settings.margin, std::min(screen.x, screen.y) * 0.2F);
+            const bool showCpu = settings.cpuUsage || settings.ram;
+            const bool showGpu = settings.gpuUsage || settings.gpuTemperature || settings.gpuPower ||
+                settings.gpuClock || settings.vram || settings.gameVram;
+            const auto layout = CalculateLayout(screen.x - margin * 2, fontSize * settings.width,
+                settings.layout, 1 + static_cast<int>(showCpu) + static_cast<int>(showGpu));
             Gui::SetNextWindowPos({right ? screen.x - margin : margin, bottom ? screen.y - margin : margin},
                 Gui::ImGuiCond_Always, {right ? 1.0F : 0, bottom ? 1.0F : 0});
-            Gui::SetNextWindowSize({std::min(fontSize * settings.width, screen.x - margin * 2), 0});
+            Gui::SetNextWindowSize({layout.width, 0});
             Gui::SetNextWindowBgAlpha(settings.opacity);
             Gui::PushStyleColor(Gui::ImGuiCol_WindowBg, {0.025F, 0.045F, 0.075F, 1});
             Gui::PushStyleColor(Gui::ImGuiCol_Text, {0.9F, 0.94F, 0.96F, 1});
@@ -239,32 +248,40 @@ namespace Overlay::UI
                 Gui::ImGuiWindowFlags_NoFocusOnAppearing;
             if (Gui::Begin("Performance Overlay###SFSEPerformanceOverlay", nullptr, flags)) {
                 Gui::SetWindowFontScale(settings.scale);
-                Gui::TextColored(cyan, "PERFORMANCE");
-                if (settings.fps) Row("FPS", statistics.count ? std::format("{:.0f}", statistics.fps) : "--");
-                if (settings.frameTime) Row("Frame time", statistics.count ? std::format("{:.2f} ms", statistics.meanMs) : "--");
-                if (settings.lowOnePercent) Row("1% low", statistics.count >= 100 ? std::format("{:.0f} FPS", statistics.lowOnePercent) : "warming up");
-                if (settings.peak) Row("Peak", statistics.count ? std::format("{:.2f} ms", statistics.peakMs) : "--");
-                if (settings.graph) Graph();
-                const bool fresh = telemetry.sampledAt && now - telemetry.sampledAt < 3000;
-                if (settings.cpuUsage || settings.ram) {
-                    Gui::Spacing();
-                    Gui::TextColored(cyan, "CPU + RAM");
-                    if (settings.cpuUsage) Row("CPU", Value(fresh ? telemetry.cpuUsage : std::nullopt, "%"));
-                    if (settings.ram) MemoryRow("RAM", fresh ? telemetry.ramUsedGiB : std::nullopt, telemetry.ramTotalGiB);
+                Gui::PushStyleVar(Gui::ImGuiStyleVar_CellPadding, {layout.columns > 1 ? fontSize * 0.4F : 0, 0});
+                if (Gui::BeginTable("Sections", layout.columns, Gui::ImGuiTableFlags_SizingStretchSame)) {
+                    Gui::TableNextColumn();
+                    Gui::TextColored(cyan, "PERFORMANCE");
+                    if (settings.fps) Row("FPS", statistics.count ? std::format("{:.0f}", statistics.fps) : "--");
+                    if (settings.frameTime) Row("Frame time", statistics.count ? std::format("{:.2f} ms", statistics.meanMs) : "--");
+                    if (settings.lowOnePercent) Row("1% low", statistics.count >= 100 ? std::format("{:.0f} FPS", statistics.lowOnePercent) : "warming up");
+                    if (settings.peak) Row("Peak", statistics.count ? std::format("{:.2f} ms", statistics.peakMs) : "--");
+                    if (settings.graph) Graph();
+                    const bool fresh = telemetry.sampledAt && now - telemetry.sampledAt < 3000;
+                    if (showCpu) {
+                        Gui::TableNextColumn();
+                        if (layout.columns == 1) Gui::Spacing();
+                        Gui::TextColored(cyan, "CPU + RAM");
+                        if (settings.cpuUsage) Row("CPU", Value(fresh ? telemetry.cpuUsage : std::nullopt, "%"));
+                        if (settings.ram) MemoryRow("RAM", fresh ? telemetry.ramUsedGiB : std::nullopt, telemetry.ramTotalGiB);
+                    }
+                    if (showGpu) {
+                        Gui::TableNextColumn();
+                        if (layout.columns == 1) Gui::Spacing();
+                        Gui::TextColored(cyan, "GPU");
+                        const Telemetry::GpuReading empty;
+                        const auto* selected = SelectedGpu();
+                        const auto& gpu = fresh && selected ? *selected : empty;
+                        if (settings.gpuUsage) Row("Usage", Value(gpu.usage, "%"));
+                        if (settings.gpuTemperature) Row("Temperature", Value(gpu.temperature, " C"));
+                        if (settings.gpuPower) Row("Power", Value(gpu.watts, " W"));
+                        if (settings.gpuClock) Row("Clock", Value(gpu.clockMHz, " MHz"));
+                        if (settings.vram) MemoryRow("VRAM", gpu.boardMemoryGiB, gpu.boardTotalGiB);
+                        if (settings.gameVram) MemoryRow("Game VRAM", gpu.gameMemoryGiB, gpu.gameBudgetGiB);
+                    }
+                    Gui::EndTable();
                 }
-                if (settings.gpuUsage || settings.gpuTemperature || settings.gpuPower || settings.gpuClock || settings.vram || settings.gameVram) {
-                    Gui::Spacing();
-                    Gui::TextColored(cyan, "GPU");
-                    const Telemetry::GpuReading empty;
-                    const auto* selected = SelectedGpu();
-                    const auto& gpu = fresh && selected ? *selected : empty;
-                    if (settings.gpuUsage) Row("Usage", Value(gpu.usage, "%"));
-                    if (settings.gpuTemperature) Row("Temperature", Value(gpu.temperature, " C"));
-                    if (settings.gpuPower) Row("Power", Value(gpu.watts, " W"));
-                    if (settings.gpuClock) Row("Clock", Value(gpu.clockMHz, " MHz"));
-                    if (settings.vram) MemoryRow("VRAM", gpu.boardMemoryGiB, gpu.boardTotalGiB);
-                    if (settings.gameVram) MemoryRow("Game VRAM", gpu.gameMemoryGiB, gpu.gameBudgetGiB);
-                }
+                Gui::PopStyleVar();
             }
             Gui::End();
             Gui::PopStyleVar(3);

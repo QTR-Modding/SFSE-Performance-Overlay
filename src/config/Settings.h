@@ -23,6 +23,7 @@ namespace Overlay::Config
         float opacity = 0.85F;
         float scale = 0.7F;
         float width = 18.0F;
+        float layout = 0.0F;
         float margin = 20.0F;
         float historySeconds = 10.0F;
         float graphCeiling = 50.0F;
