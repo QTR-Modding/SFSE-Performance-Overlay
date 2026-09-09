@@ -7,8 +7,11 @@ and save automatically after editing.
 
 - **CPU:** system CPU usage and RAM.
 - **GPU:** usage, temperature, power, clock, total VRAM and game VRAM/budget.
-- **Performance:** FPS, frame time, 1% lows and a frame-time graph, with position,
-  size, opacity and history controls.
+- **Performance:** FPS, frame time, 1% lows and a frame-time graph with
+  history controls.
+- **Appearance:** show/hide, size, opacity, position and vertical-to-horizontal layout.
+
+Hiding the overlay pauses hardware polling and frame measurements. Settings still save.
 
 Requires SFSE and SFSE Menu Framework 0.15.0. Place the DLL in `Data/SFSE/Plugins`.
 Settings are saved to `Data/SFSE/Plugins/SFSEPerformanceOverlay.ini`.

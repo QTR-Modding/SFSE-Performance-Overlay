@@ -18,7 +18,8 @@ namespace Overlay::Telemetry
         std::uint64_t sampledAt{};
     };
 
-    bool Start();
+    bool Start(bool enabled = true);
+    void SetEnabled(bool enabled);
     // Nonblocking: keep the caller's previous snapshot if publishing is in progress.
     void Read(Snapshot& destination);
     enum class SaveState { Idle, Saving, Saved, Failed };

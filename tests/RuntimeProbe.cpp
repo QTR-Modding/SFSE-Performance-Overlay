@@ -15,8 +15,12 @@ int main()
         return 1;
     }
     std::filesystem::create_directories(directory);
-    if (!T::Start()) return 2;
+    if (!T::Start(false)) return 2;
     T::Snapshot snapshot;
+    Sleep(700);
+    T::Read(snapshot);
+    if (snapshot.sampledAt != 0) return 9;
+    T::SetEnabled(true);
     for (int i = 0; i < 30; ++i) {
         Sleep(100);
         T::Read(snapshot);
@@ -24,6 +28,13 @@ int main()
     }
     if (!snapshot.cpuUsage || !snapshot.ramUsedGiB || snapshot.gpus.empty()) return 3;
     std::cout << "CPU " << *snapshot.cpuUsage << "% | RAM " << *snapshot.ramUsedGiB << " GiB\n";
+    T::SetEnabled(false);
+    Sleep(800); // Allow a query already in progress to finish.
+    T::Read(snapshot);
+    const auto pausedAt = snapshot.sampledAt;
+    Sleep(700);
+    T::Read(snapshot);
+    if (snapshot.sampledAt != pausedAt) return 6;
     Overlay::Config::Settings requested;
     requested.opacity = 0.37F;
     requested.scale = 1.25F;
@@ -42,6 +53,14 @@ int main()
     const bool valid = actual.opacity == requested.opacity && actual.scale == requested.scale &&
         actual.adapter == -1 && !actual.cpuUsage && !actual.fps && !actual.graph &&
         actual.corner == 3 && actual.gpuClock && actual.layout == requested.layout;
+    T::Read(snapshot);
+    if (snapshot.sampledAt != pausedAt) return 7; // Saving while hidden must not poll.
+    T::SetEnabled(true);
+    for (int i = 0; i < 30 && snapshot.sampledAt == pausedAt; ++i) {
+        Sleep(100);
+        T::Read(snapshot);
+    }
+    if (snapshot.sampledAt == pausedAt) return 8;
     std::filesystem::remove(file);
     if (!valid) return 5;
     std::cout << "Background sampling and asynchronous settings round-trip passed\n";

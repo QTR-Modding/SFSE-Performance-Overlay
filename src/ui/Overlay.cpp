@@ -116,7 +116,6 @@ namespace Overlay::UI
         void __stdcall PerformanceSettings()
         {
             Gui::SeparatorText("Performance");
-            Changed(Gui::Checkbox("Show overlay", &settings.enabled));
             Changed(Gui::Checkbox("FPS", &settings.fps));
             Changed(Gui::Checkbox("Frame time", &settings.frameTime));
             Changed(Gui::Checkbox("Frame-time graph", &settings.graph));
@@ -131,7 +130,14 @@ namespace Overlay::UI
                 statistics = {};
                 lastCounter = {};
             }
+            SaveStatus();
+        }
+
+        void __stdcall AppearanceSettings()
+        {
             Gui::SeparatorText("Appearance");
+            Changed(Gui::Checkbox("Show overlay", &settings.enabled));
+            Gui::TextDisabled("Hidden: hardware sampling and frame measurements are paused.");
             constexpr const char* corners[] = {"Top left", "Top right", "Bottom left", "Bottom right"};
             if (Gui::BeginCombo("Position", corners[settings.corner])) {
                 for (int i = 0; i < 4; ++i) {
@@ -203,6 +209,17 @@ namespace Overlay::UI
 
         void __stdcall Render()
         {
+            Telemetry::SetEnabled(settings.enabled);
+            const auto now = GetTickCount64();
+            if (dirty && now - changedAt >= 700 && !Gui::IsAnyItemActive()) {
+                if (Telemetry::QueueSave(settings)) dirty = false;
+            }
+            if (!settings.enabled) {
+                lastCounter = {};
+                history.Clear();
+                statistics = {};
+                return;
+            }
             LARGE_INTEGER counter;
             QueryPerformanceCounter(&counter);
             if (lastCounter.QuadPart != 0 && frequency.QuadPart > 0) {
@@ -210,7 +227,6 @@ namespace Overlay::UI
                     static_cast<double>(frequency.QuadPart), settings.historySeconds);
             }
             lastCounter = counter;
-            const auto now = GetTickCount64();
             if (now - lastSummary >= 500) {
                 statistics = history.Summarize();
                 statistics.meanMs = history.RecentMeanMs();
@@ -218,10 +234,6 @@ namespace Overlay::UI
                 Telemetry::Read(telemetry);
                 lastSummary = now;
             }
-            if (dirty && now - changedAt >= 700 && !Gui::IsAnyItemActive()) {
-                if (Telemetry::QueueSave(settings)) dirty = false;
-            }
-            if (!settings.enabled) return;
 
             const auto screen = Gui::GetIO()->DisplaySize;
             const bool right = (settings.corner & 1) != 0;
@@ -297,11 +309,12 @@ namespace Overlay::UI
         QueryPerformanceFrequency(&frequency);
         registration = SFSEMenuFramework::AddHudElement(Render);
         if (!registration) return false;
-        if (!Telemetry::Start()) logger::warn("Telemetry worker unavailable.");
+        if (!Telemetry::Start(settings.enabled)) logger::warn("Telemetry worker unavailable.");
         SFSEMenuFramework::SetSection("Performance Overlay");
         SFSEMenuFramework::AddSectionItem("CPU", CpuSettings);
         SFSEMenuFramework::AddSectionItem("GPU", GpuSettings);
         SFSEMenuFramework::AddSectionItem("Performance", PerformanceSettings);
+        SFSEMenuFramework::AddSectionItem("Appearance", AppearanceSettings);
         logger::info("Registered performance HUD and CPU/GPU/Performance settings.");
         // Registration is intentionally process-lifetime, matching the SFSE plugin.
         return true;

@@ -18,6 +18,8 @@ namespace Overlay::Telemetry
         {
             std::mutex mutex;
             Snapshot latest;
+            HANDLE wake{};
+            std::atomic<bool> enabled{false};
             std::optional<Config::Settings> pendingSave;
             std::atomic<SaveState> saveState{SaveState::Idle};
         };
@@ -26,16 +28,9 @@ namespace Overlay::Telemetry
         DWORD WINAPI Poll(void* argument)
         {
             auto& destination = *static_cast<Shared*>(argument);
-            GpuCollector gpu;
+            std::unique_ptr<GpuCollector> gpu;
             PDH_HQUERY query{};
             PDH_HCOUNTER cpu{};
-            if (PdhOpenQueryW(nullptr, 0, &query) == ERROR_SUCCESS) {
-                if (PdhAddEnglishCounterW(query,
-                    L"\\Processor Information(_Total)\\% Processor Time", 0, &cpu) != ERROR_SUCCESS) {
-                    cpu = nullptr;
-                }
-                PdhCollectQueryData(query);
-            }
             for (;;) {
                 std::optional<Config::Settings> save;
                 {
@@ -47,6 +42,24 @@ namespace Overlay::Telemetry
                     const std::lock_guard lock(destination.mutex);
                     if (!destination.pendingSave) {
                         destination.saveState.store(success ? SaveState::Saved : SaveState::Failed);
+                    }
+                }
+                if (!destination.enabled.load()) {
+                    gpu.reset();
+                    if (query) PdhCloseQuery(query);
+                    query = nullptr;
+                    cpu = nullptr;
+                    WaitForSingleObject(destination.wake, INFINITE);
+                    continue;
+                }
+                if (!gpu) {
+                    gpu = std::make_unique<GpuCollector>();
+                    if (PdhOpenQueryW(nullptr, 0, &query) == ERROR_SUCCESS) {
+                        if (PdhAddEnglishCounterW(query,
+                            L"\\Processor Information(_Total)\\% Processor Time", 0, &cpu) != ERROR_SUCCESS) {
+                            cpu = nullptr;
+                        }
+                        PdhCollectQueryData(query);
                     }
                 }
                 Snapshot next;
@@ -64,24 +77,31 @@ namespace Overlay::Telemetry
                     next.ramUsedGiB = static_cast<double>(memory.ullTotalPhys - memory.ullAvailPhys) / gib;
                     next.ramTotalGiB = static_cast<double>(memory.ullTotalPhys) / gib;
                 }
-                next.gpus = gpu.Poll();
+                next.gpus = gpu->Poll();
                 next.sampledAt = GetTickCount64();
                 {
                     const std::lock_guard lock(destination.mutex);
                     destination.latest = std::move(next);
                 }
-                Sleep(500);
+                WaitForSingleObject(destination.wake, 500);
             }
         }
     }
 
-    bool Start()
+    bool Start(bool enabled)
     {
         if (shared) return true;
         auto* candidate = new (std::nothrow) Shared;
         if (!candidate) return false;
+        candidate->enabled.store(enabled);
+        candidate->wake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+        if (!candidate->wake) {
+            delete candidate;
+            return false;
+        }
         const auto thread = CreateThread(nullptr, 0, Poll, candidate, 0, nullptr);
         if (!thread) {
+            CloseHandle(candidate->wake);
             delete candidate;
             return false;
         }
@@ -92,6 +112,13 @@ namespace Overlay::Telemetry
         return true;
     }
 
+    void SetEnabled(bool enabled)
+    {
+        if (shared && shared->enabled.exchange(enabled) != enabled) {
+            SetEvent(shared->wake);
+        }
+    }
+
     bool QueueSave(const Config::Settings& settings)
     {
         if (!shared) return false;
@@ -99,6 +126,7 @@ namespace Overlay::Telemetry
         if (!lock.owns_lock()) return false;
         shared->pendingSave = settings;
         shared->saveState.store(SaveState::Saving);
+        SetEvent(shared->wake);
         return true;
     }
 
