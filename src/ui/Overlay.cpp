@@ -167,6 +167,26 @@ namespace Overlay::UI
             SaveStatus();
         }
 
+        void __stdcall SettingsTabs()
+        {
+            if (!Gui::BeginTabBar("PerformanceOverlaySettings")) return;
+            struct Tab
+            {
+                const char* name;
+                SFSEMenuFramework::Model::RenderFunction render;
+            };
+            constexpr Tab tabs[] = {
+                {"Appearance", AppearanceSettings}, {"Performance", PerformanceSettings},
+                {"CPU", CpuSettings}, {"GPU", GpuSettings}
+            };
+            for (const auto& tab : tabs) {
+                if (!Gui::BeginTabItem(tab.name)) continue;
+                tab.render();
+                Gui::EndTabItem();
+            }
+            Gui::EndTabBar();
+        }
+
         void Row(const char* label, const std::string& value)
         {
             Gui::TextDisabled("%s", label);
@@ -415,12 +435,9 @@ namespace Overlay::UI
         registration = SFSEMenuFramework::AddHudElement(Render);
         if (!registration) return false;
         if (!Telemetry::Start(settings.enabled)) logger::warn("Telemetry worker unavailable.");
-        SFSEMenuFramework::SetSection("Performance Overlay");
-        SFSEMenuFramework::AddSectionItem("Appearance", AppearanceSettings);
-        SFSEMenuFramework::AddSectionItem("Performance", PerformanceSettings);
-        SFSEMenuFramework::AddSectionItem("CPU", CpuSettings);
-        SFSEMenuFramework::AddSectionItem("GPU", GpuSettings);
-        logger::info("Registered performance HUD and CPU/GPU/Performance settings.");
+        SFSEMenuFramework::SetSection("Utilities");
+        SFSEMenuFramework::AddSectionItem("Performance Overlay", SettingsTabs);
+        logger::info("Registered performance HUD and Utilities/Performance Overlay settings.");
         // Registration is intentionally process-lifetime, matching the SFSE plugin.
         return true;
     }
