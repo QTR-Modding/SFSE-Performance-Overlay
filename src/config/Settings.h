@@ -6,6 +6,7 @@ namespace Overlay::Config
     {
         bool enabled = true;
         bool followFrameworkTheme = true;
+        bool showHeadings = true;
         bool fps = true;
         bool frameTime = true;
         bool graph = true;

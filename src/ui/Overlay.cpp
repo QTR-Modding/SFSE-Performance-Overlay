@@ -154,7 +154,8 @@ namespace Overlay::UI
             Changed(Gui::SliderFloat("Width", &settings.width, 12, 32, "%.0f"));
             Changed(Gui::SliderFloat("Layout", &settings.layout, 0, 1, "%.2f"));
             Gui::TextDisabled("Vertical  <---->  Horizontal");
-            Gui::TextWrapped("Sections wrap as the overlay widens. Text size stays unchanged.");
+            Gui::TextWrapped("Stacked sections become a compact strip. Readings wrap to fit without shrinking the text.");
+            Changed(Gui::Checkbox("Section headings", &settings.showHeadings));
             Changed(Gui::SliderFloat("Background opacity", &settings.opacity, 0, 1, "%.2f"));
             Changed(Gui::SliderFloat("Screen margin", &settings.margin, 0, 200, "%.0f px"));
             if (Gui::Button("Restore defaults")) {
@@ -174,15 +175,52 @@ namespace Overlay::UI
             Gui::TextUnformatted(value.c_str());
         }
 
-        void MemoryRow(const char* label, std::optional<double> used, std::optional<double> total)
+        struct Reading
         {
-            Row(label, used && total ? std::format("{:.1f} / {:.1f} GiB", *used, *total) : "--");
-        }
+            const char* label{};
+            std::string value;
+            const char* reserve{};
 
-        void Graph()
+            float Width() const
+            {
+                // Reserve stable numeric space so changing digits do not shuffle readings.
+                return Gui::CalcTextSize(label).x + Gui::GetFontSize() * 0.3F +
+                    std::max(Gui::CalcTextSize(value.c_str()).x, Gui::CalcTextSize(reserve).x);
+            }
+        };
+
+        struct Section
+        {
+            const char* title{};
+            std::array<Reading, 6> readings{};
+            int count{};
+            bool graph{};
+
+            void Add(const char* label, std::string value, const char* reserve)
+            {
+                readings[count++] = {label, std::move(value), reserve};
+            }
+
+            void Memory(const char* label, std::optional<double> used, std::optional<double> total)
+            {
+                Add(label, used && total ? std::format("{:.1f} / {:.1f} GiB", *used, *total) : "--",
+                    "99.9 / 99.9 GiB");
+            }
+
+            float InlineWidth() const
+            {
+                const float gap = Gui::GetFontSize();
+                float width = graph ? gap * 8 : 0;
+                for (int i = 0; i < count; ++i) width += readings[i].Width();
+                width += gap * std::max(0, count + static_cast<int>(graph) - 1);
+                if (settings.showHeadings) width = std::max(width, Gui::CalcTextSize(title).x);
+                return std::max(gap, width);
+            }
+        };
+
+        void Graph(Gui::ImVec2 size, bool footer)
         {
             const auto start = Gui::GetCursorScreenPos();
-            const Gui::ImVec2 size{Gui::GetContentRegionAvail().x, Gui::GetFontSize() * 3.5F};
             auto* draw = Gui::GetWindowDrawList();
             const auto background = settings.followFrameworkTheme ? Gui::GetColorU32(Gui::ImGuiCol_FrameBg, 0.4F) : IM_COL32(4, 10, 18, 100);
             Draw::AddRectFilled(draw, start, {start.x + size.x, start.y + size.y}, background, 0, 0);
@@ -210,7 +248,48 @@ namespace Overlay::UI
                 previousValid = true;
             }
             Gui::Dummy(size);
-            Row("FRAME TIME", std::format("{:.0f}s  /  {:.0f} ms", settings.historySeconds, settings.graphCeiling));
+            if (footer) Row("FRAME TIME", std::format("{:.0f}s  /  {:.0f} ms", settings.historySeconds, settings.graphCeiling));
+        }
+
+        void RenderSection(const Section& section, float compact, const Gui::ImVec4& accent)
+        {
+            if (settings.showHeadings) Gui::TextColored(accent, "%s", section.title);
+            const auto start = Gui::GetCursorScreenPos();
+            const float available = std::max(1.0F, Gui::GetContentRegionAvail().x);
+            const float font = Gui::GetFontSize();
+            FlowLayout flow{available, font, Gui::GetStyle()->ItemSpacing.y};
+            for (int i = 0; i < section.count; ++i) {
+                const auto& reading = section.readings[i];
+                const float width = std::min(available, std::lerp(available, reading.Width(), compact));
+                const auto position = flow.Place(width);
+                Gui::SetCursorScreenPos({start.x + position.x, start.y + position.y});
+                Gui::BeginGroup();
+                if (reading.Width() <= width + 0.01F) {
+                    Gui::TextDisabled("%s", reading.label);
+                    Gui::SameLine(0, font * 0.3F);
+                    Gui::SetCursorScreenPos({start.x + position.x + width -
+                        Gui::CalcTextSize(reading.value.c_str()).x, Gui::GetCursorScreenPos().y});
+                    Gui::TextUnformatted(reading.value.c_str());
+                } else {
+                    Gui::PushTextWrapPos(Gui::GetCursorPosX() + width);
+                    Gui::TextWrapped("%s", reading.label);
+                    Gui::TextWrapped("%s", reading.value.c_str());
+                    Gui::PopTextWrapPos();
+                }
+                Gui::EndGroup();
+                flow.Advance(width, Gui::GetItemRectSize().y);
+            }
+            if (section.graph) {
+                const float width = std::lerp(available, std::min(available, font * 8), compact);
+                const auto position = flow.Place(width);
+                Gui::SetCursorScreenPos({start.x + position.x, start.y + position.y});
+                Gui::BeginGroup();
+                Graph({width, font * std::lerp(3.5F, 1.2F, compact)}, compact < 0.5F);
+                Gui::EndGroup();
+                flow.Advance(width, Gui::GetItemRectSize().y);
+            }
+            Gui::SetCursorScreenPos(start);
+            Gui::Dummy({available, flow.Height()});
         }
 
         void __stdcall Render()
@@ -246,11 +325,41 @@ namespace Overlay::UI
             const bool bottom = (settings.corner & 2) != 0;
             const float fontSize = Gui::GetFontSize() * settings.scale;
             const float margin = std::min(settings.margin, std::min(screen.x, screen.y) * 0.2F);
-            const bool showCpu = settings.cpuUsage || settings.ram;
-            const bool showGpu = settings.gpuUsage || settings.gpuTemperature || settings.gpuPower ||
-                settings.gpuClock || settings.vram || settings.gameVram;
+            std::array<Section, 3> sections{};
+            int sectionCount = 1;
+            auto& performance = sections[0];
+            performance.title = "PERFORMANCE";
+            performance.graph = settings.graph;
+            if (settings.fps) performance.Add("FPS", statistics.count ? std::format("{:.0f}", statistics.fps) : "--", "999");
+            if (settings.frameTime) performance.Add("Frame", statistics.count ? std::format("{:.2f} ms", statistics.meanMs) : "--", "99.99 ms");
+            if (settings.lowOnePercent) performance.Add("1% low", statistics.count >= 100 ? std::format("{:.0f} FPS", statistics.lowOnePercent) : "--", "999 FPS");
+            if (settings.peak) performance.Add("Peak", statistics.count ? std::format("{:.2f} ms", statistics.peakMs) : "--", "99.99 ms");
+            const bool fresh = telemetry.sampledAt && now - telemetry.sampledAt < 3000;
+            if (settings.cpuUsage || settings.ram) {
+                auto& cpu = sections[sectionCount++];
+                cpu.title = "CPU + RAM";
+                if (settings.cpuUsage) cpu.Add("CPU", Value(fresh ? telemetry.cpuUsage : std::nullopt, "%"), "100%");
+                if (settings.ram) cpu.Memory("RAM", fresh ? telemetry.ramUsedGiB : std::nullopt, telemetry.ramTotalGiB);
+            }
+            if (settings.gpuUsage || settings.gpuTemperature || settings.gpuPower ||
+                settings.gpuClock || settings.vram || settings.gameVram) {
+                auto& gpuSection = sections[sectionCount++];
+                gpuSection.title = "GPU";
+                const Telemetry::GpuReading empty;
+                const auto* selected = SelectedGpu();
+                const auto& gpu = fresh && selected ? *selected : empty;
+                if (settings.gpuUsage) gpuSection.Add("GPU", Value(gpu.usage, "%"), "100%");
+                if (settings.gpuTemperature) gpuSection.Add("Temp", Value(gpu.temperature, " C"), "999 C");
+                if (settings.gpuPower) gpuSection.Add("Power", Value(gpu.watts, " W"), "999 W");
+                if (settings.gpuClock) gpuSection.Add("Clock", Value(gpu.clockMHz, " MHz"), "9999 MHz");
+                if (settings.vram) gpuSection.Memory("VRAM", gpu.boardMemoryGiB, gpu.boardTotalGiB);
+                if (settings.gameVram) gpuSection.Memory("Game VRAM", gpu.gameMemoryGiB, gpu.gameBudgetGiB);
+            }
+            // Leave a little slack for per-column pixel rounding.
+            float stripWidth = fontSize * (1.2F + 0.8F * static_cast<float>(sectionCount)) + 2 * sectionCount;
+            for (int i = 0; i < sectionCount; ++i) stripWidth += sections[i].InlineWidth() * settings.scale;
             const auto layout = CalculateLayout(screen.x - margin * 2, fontSize * settings.width,
-                settings.layout, 1 + static_cast<int>(showCpu) + static_cast<int>(showGpu));
+                settings.layout, sectionCount, stripWidth);
             Gui::SetNextWindowPos({right ? screen.x - margin : margin, bottom ? screen.y - margin : margin},
                 Gui::ImGuiCond_Always, {right ? 1.0F : 0, bottom ? 1.0F : 0});
             Gui::SetNextWindowSize({layout.width, 0});
@@ -273,35 +382,16 @@ namespace Overlay::UI
             if (Gui::Begin("Performance Overlay###SFSEPerformanceOverlay", nullptr, flags)) {
                 Gui::SetWindowFontScale(settings.scale);
                 Gui::PushStyleVar(Gui::ImGuiStyleVar_CellPadding, {layout.columns > 1 ? fontSize * 0.4F : 0, 0});
-                if (Gui::BeginTable("Sections", layout.columns, Gui::ImGuiTableFlags_SizingStretchSame)) {
-                    Gui::TableNextColumn();
-                    Gui::TextColored(accent, "PERFORMANCE");
-                    if (settings.fps) Row("FPS", statistics.count ? std::format("{:.0f}", statistics.fps) : "--");
-                    if (settings.frameTime) Row("Frame time", statistics.count ? std::format("{:.2f} ms", statistics.meanMs) : "--");
-                    if (settings.lowOnePercent) Row("1% low", statistics.count >= 100 ? std::format("{:.0f} FPS", statistics.lowOnePercent) : "warming up");
-                    if (settings.peak) Row("Peak", statistics.count ? std::format("{:.2f} ms", statistics.peakMs) : "--");
-                    if (settings.graph) Graph();
-                    const bool fresh = telemetry.sampledAt && now - telemetry.sampledAt < 3000;
-                    if (showCpu) {
-                        Gui::TableNextColumn();
-                        if (layout.columns == 1) Gui::Spacing();
-                        Gui::TextColored(accent, "CPU + RAM");
-                        if (settings.cpuUsage) Row("CPU", Value(fresh ? telemetry.cpuUsage : std::nullopt, "%"));
-                        if (settings.ram) MemoryRow("RAM", fresh ? telemetry.ramUsedGiB : std::nullopt, telemetry.ramTotalGiB);
+                if (Gui::BeginTable("Sections", layout.columns, Gui::ImGuiTableFlags_SizingStretchProp | Gui::ImGuiTableFlags_BordersInnerV)) {
+                    for (int i = 0; i < layout.columns; ++i) {
+                        const float weight = layout.columns == sectionCount ?
+                            std::lerp(fontSize * settings.width, sections[i].InlineWidth(), layout.compact) : 1.0F;
+                        Gui::TableSetupColumn(sections[i].title, Gui::ImGuiTableColumnFlags_WidthStretch, weight);
                     }
-                    if (showGpu) {
+                    for (int i = 0; i < sectionCount; ++i) {
                         Gui::TableNextColumn();
-                        if (layout.columns == 1) Gui::Spacing();
-                        Gui::TextColored(accent, "GPU");
-                        const Telemetry::GpuReading empty;
-                        const auto* selected = SelectedGpu();
-                        const auto& gpu = fresh && selected ? *selected : empty;
-                        if (settings.gpuUsage) Row("Usage", Value(gpu.usage, "%"));
-                        if (settings.gpuTemperature) Row("Temperature", Value(gpu.temperature, " C"));
-                        if (settings.gpuPower) Row("Power", Value(gpu.watts, " W"));
-                        if (settings.gpuClock) Row("Clock", Value(gpu.clockMHz, " MHz"));
-                        if (settings.vram) MemoryRow("VRAM", gpu.boardMemoryGiB, gpu.boardTotalGiB);
-                        if (settings.gameVram) MemoryRow("Game VRAM", gpu.gameMemoryGiB, gpu.gameBudgetGiB);
+                        if (i > 0 && layout.columns == 1) Gui::Spacing();
+                        RenderSection(sections[i], layout.compact, accent);
                     }
                     Gui::EndTable();
                 }

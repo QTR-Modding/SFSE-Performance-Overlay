@@ -29,6 +29,7 @@ namespace Overlay::Config
         constexpr Field booleans[] = {
             {L"Performance", L"Enabled", &Settings::enabled},
             {L"Appearance", L"FollowFrameworkTheme", &Settings::followFrameworkTheme},
+            {L"Appearance", L"ShowHeadings", &Settings::showHeadings},
             {L"Performance", L"FPS", &Settings::fps},
             {L"Performance", L"FrameTime", &Settings::frameTime},
             {L"Performance", L"Graph", &Settings::graph},
