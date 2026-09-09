@@ -27,6 +27,12 @@ int main()
     Check(CalculateLayout(700, 300, 1, 3, 1500).columns == 2, "screen-limited reflow");
     Check(CalculateLayout(1920, 300, 1, 1, 600).width == 600, "single section can flatten too");
     Check(CalculateLayout(200, 300, 1, 3, 1500).width == 200, "narrow screen clamp");
+    using Overlay::UI::CalculateGraphWidth;
+    Check(CalculateGraphWidth(300, 20, 0, 1) == 300, "default full graph width");
+    Check(CalculateGraphWidth(300, 20, 1, 1) == 160, "default sparkline width");
+    Check(CalculateGraphWidth(300, 20, 0, 0.5F) == 150, "narrower full graph");
+    Check(CalculateGraphWidth(300, 20, 1, 0.5F) == 80, "narrower sparkline");
+    Check(CalculateGraphWidth(300, 20, 1, 3) == 300, "graph cannot overflow section");
     Overlay::UI::FlowLayout flow{300, 10, 5};
     auto position = flow.Place(100);
     Check(position.x == 0 && position.y == 0, "first reading");
