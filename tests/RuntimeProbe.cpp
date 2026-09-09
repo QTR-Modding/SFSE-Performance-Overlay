@@ -36,6 +36,8 @@ int main()
     T::Read(snapshot);
     if (snapshot.sampledAt != pausedAt) return 6;
     Overlay::Config::Settings requested;
+    if (!requested.followFrameworkTheme) return 10;
+    requested.followFrameworkTheme = false;
     requested.opacity = 0.37F;
     requested.scale = 1.25F;
     requested.layout = 0.75F;
@@ -52,7 +54,7 @@ int main()
     actual.Load();
     const bool valid = actual.opacity == requested.opacity && actual.scale == requested.scale &&
         actual.adapter == -1 && !actual.cpuUsage && !actual.fps && !actual.graph &&
-        actual.corner == 3 && actual.gpuClock && actual.layout == requested.layout;
+        actual.corner == 3 && actual.gpuClock && actual.layout == requested.layout && !actual.followFrameworkTheme;
     T::Read(snapshot);
     if (snapshot.sampledAt != pausedAt) return 7; // Saving while hidden must not poll.
     T::SetEnabled(true);

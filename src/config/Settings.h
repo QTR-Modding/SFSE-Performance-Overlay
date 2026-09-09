@@ -5,6 +5,7 @@ namespace Overlay::Config
     struct Settings
     {
         bool enabled = true;
+        bool followFrameworkTheme = true;
         bool fps = true;
         bool frameTime = true;
         bool graph = true;

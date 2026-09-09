@@ -12,6 +12,8 @@ and save automatically after editing.
 - **Appearance:** show/hide, size, opacity, position and vertical-to-horizontal layout.
 
 Hiding the overlay pauses hardware polling and frame measurements. Settings still save.
+The overlay follows SFSE Menu Framework's colors by default. Turn off
+**Follow SFSE-MF theme** in Appearance to use its original dark palette instead.
 
 Requires SFSE and SFSE Menu Framework 0.15.0. Place the DLL in `Data/SFSE/Plugins`.
 Settings are saved to `Data/SFSE/Plugins/SFSEPerformanceOverlay.ini`.

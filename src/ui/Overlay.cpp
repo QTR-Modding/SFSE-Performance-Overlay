@@ -138,6 +138,8 @@ namespace Overlay::UI
             Gui::SeparatorText("Appearance");
             Changed(Gui::Checkbox("Show overlay", &settings.enabled));
             Gui::TextDisabled("Hidden: hardware sampling and frame measurements are paused.");
+            Changed(Gui::Checkbox("Follow SFSE-MF theme", &settings.followFrameworkTheme));
+            Gui::TextWrapped("Uses the framework's colors. Turn off for the original dark overlay palette.");
             constexpr const char* corners[] = {"Top left", "Top right", "Bottom left", "Bottom right"};
             if (Gui::BeginCombo("Position", corners[settings.corner])) {
                 for (int i = 0; i < 4; ++i) {
@@ -164,7 +166,7 @@ namespace Overlay::UI
 
         void Row(const char* label, const std::string& value)
         {
-            Gui::TextColored(muted, "%s", label);
+            Gui::TextDisabled("%s", label);
             Gui::SameLine();
             const auto width = Gui::CalcTextSize(value.c_str()).x;
             const float offset = std::max(0.0F, Gui::GetContentRegionAvail().x - width);
@@ -182,11 +184,13 @@ namespace Overlay::UI
             const auto start = Gui::GetCursorScreenPos();
             const Gui::ImVec2 size{Gui::GetContentRegionAvail().x, Gui::GetFontSize() * 3.5F};
             auto* draw = Gui::GetWindowDrawList();
-            Draw::AddRectFilled(draw, start, {start.x + size.x, start.y + size.y}, IM_COL32(4, 10, 18, 100), 0, 0);
+            const auto background = settings.followFrameworkTheme ? Gui::GetColorU32(Gui::ImGuiCol_FrameBg, 0.4F) : IM_COL32(4, 10, 18, 100);
+            Draw::AddRectFilled(draw, start, {start.x + size.x, start.y + size.y}, background, 0, 0);
             const float reference = 16.667F;
             if (reference < settings.graphCeiling) {
                 const auto y = start.y + size.y * (1 - reference / settings.graphCeiling);
-                Draw::AddLine(draw, {start.x, y}, {start.x + size.x, y}, IM_COL32(140, 170, 190, 70), 1);
+                const auto guide = settings.followFrameworkTheme ? Gui::GetColorU32(Gui::ImGuiCol_Border, 0.5F) : IM_COL32(140, 170, 190, 70);
+                Draw::AddLine(draw, {start.x, y}, {start.x + size.x, y}, guide, 1);
             }
             std::array<float, 512> values;
             history.Graph(values, settings.historySeconds);
@@ -197,8 +201,10 @@ namespace Overlay::UI
                 const Gui::ImVec2 point{
                     start.x + static_cast<float>(i) * size.x / static_cast<float>(values.size() - 1),
                     start.y + size.y * (1 - std::min(values[i] / settings.graphCeiling, 1.0F))};
-                const auto color = values[i] > 33.334F ? IM_COL32(244, 135, 101, 255) :
-                    (values[i] > 16.667F ? IM_COL32(234, 201, 125, 255) : IM_COL32(110, 212, 235, 255));
+                const auto color = settings.followFrameworkTheme ? Gui::GetColorU32(
+                    values[i] > 16.667F ? Gui::ImGuiCol_PlotLinesHovered : Gui::ImGuiCol_PlotLines) :
+                    (values[i] > 33.334F ? IM_COL32(244, 135, 101, 255) :
+                        (values[i] > 16.667F ? IM_COL32(234, 201, 125, 255) : IM_COL32(110, 212, 235, 255)));
                 if (previousValid) Draw::AddLine(draw, previous, point, color, 1.5F);
                 previous = point;
                 previousValid = true;
@@ -249,9 +255,15 @@ namespace Overlay::UI
                 Gui::ImGuiCond_Always, {right ? 1.0F : 0, bottom ? 1.0F : 0});
             Gui::SetNextWindowSize({layout.width, 0});
             Gui::SetNextWindowBgAlpha(settings.opacity);
-            Gui::PushStyleColor(Gui::ImGuiCol_WindowBg, {0.025F, 0.045F, 0.075F, 1});
-            Gui::PushStyleColor(Gui::ImGuiCol_Text, {0.9F, 0.94F, 0.96F, 1});
-            Gui::PushStyleColor(Gui::ImGuiCol_Border, {0.25F, 0.4F, 0.49F, 0.65F});
+            const bool ownTheme = !settings.followFrameworkTheme;
+            if (ownTheme) {
+                Gui::PushStyleColor(Gui::ImGuiCol_WindowBg, {0.025F, 0.045F, 0.075F, 1});
+                Gui::PushStyleColor(Gui::ImGuiCol_Text, {0.9F, 0.94F, 0.96F, 1});
+                Gui::PushStyleColor(Gui::ImGuiCol_Border, {0.25F, 0.4F, 0.49F, 0.65F});
+                Gui::PushStyleColor(Gui::ImGuiCol_TextDisabled, muted);
+                Gui::PushStyleColor(Gui::ImGuiCol_CheckMark, cyan);
+            }
+            const auto accent = *Gui::GetStyleColorVec4(Gui::ImGuiCol_CheckMark);
             Gui::PushStyleVar(Gui::ImGuiStyleVar_WindowPadding, {fontSize * 0.6F, fontSize * 0.5F});
             Gui::PushStyleVar(Gui::ImGuiStyleVar_ItemSpacing, {fontSize * 0.4F, fontSize * 0.14F});
             Gui::PushStyleVar(Gui::ImGuiStyleVar_WindowRounding, fontSize * 0.25F);
@@ -263,7 +275,7 @@ namespace Overlay::UI
                 Gui::PushStyleVar(Gui::ImGuiStyleVar_CellPadding, {layout.columns > 1 ? fontSize * 0.4F : 0, 0});
                 if (Gui::BeginTable("Sections", layout.columns, Gui::ImGuiTableFlags_SizingStretchSame)) {
                     Gui::TableNextColumn();
-                    Gui::TextColored(cyan, "PERFORMANCE");
+                    Gui::TextColored(accent, "PERFORMANCE");
                     if (settings.fps) Row("FPS", statistics.count ? std::format("{:.0f}", statistics.fps) : "--");
                     if (settings.frameTime) Row("Frame time", statistics.count ? std::format("{:.2f} ms", statistics.meanMs) : "--");
                     if (settings.lowOnePercent) Row("1% low", statistics.count >= 100 ? std::format("{:.0f} FPS", statistics.lowOnePercent) : "warming up");
@@ -273,14 +285,14 @@ namespace Overlay::UI
                     if (showCpu) {
                         Gui::TableNextColumn();
                         if (layout.columns == 1) Gui::Spacing();
-                        Gui::TextColored(cyan, "CPU + RAM");
+                        Gui::TextColored(accent, "CPU + RAM");
                         if (settings.cpuUsage) Row("CPU", Value(fresh ? telemetry.cpuUsage : std::nullopt, "%"));
                         if (settings.ram) MemoryRow("RAM", fresh ? telemetry.ramUsedGiB : std::nullopt, telemetry.ramTotalGiB);
                     }
                     if (showGpu) {
                         Gui::TableNextColumn();
                         if (layout.columns == 1) Gui::Spacing();
-                        Gui::TextColored(cyan, "GPU");
+                        Gui::TextColored(accent, "GPU");
                         const Telemetry::GpuReading empty;
                         const auto* selected = SelectedGpu();
                         const auto& gpu = fresh && selected ? *selected : empty;
@@ -297,7 +309,7 @@ namespace Overlay::UI
             }
             Gui::End();
             Gui::PopStyleVar(3);
-            Gui::PopStyleColor(3);
+            if (ownTheme) Gui::PopStyleColor(5);
         }
     }
 
