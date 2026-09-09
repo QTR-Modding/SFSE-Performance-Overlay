@@ -414,9 +414,9 @@ namespace Overlay::UI
         if (!Telemetry::Start(settings.enabled)) logger::warn("Telemetry worker unavailable.");
         SFSEMenuFramework::SetSection("Performance Overlay");
         SFSEMenuFramework::AddSectionItem("Appearance", AppearanceSettings);
+        SFSEMenuFramework::AddSectionItem("Performance", PerformanceSettings);
         SFSEMenuFramework::AddSectionItem("CPU", CpuSettings);
         SFSEMenuFramework::AddSectionItem("GPU", GpuSettings);
-        SFSEMenuFramework::AddSectionItem("Performance", PerformanceSettings);
         logger::info("Registered performance HUD and CPU/GPU/Performance settings.");
         // Registration is intentionally process-lifetime, matching the SFSE plugin.
         return true;
