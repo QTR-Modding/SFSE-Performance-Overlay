@@ -29,11 +29,15 @@ namespace Overlay::UI
         return {width, columns, compact};
     }
 
-    inline float CalculateGraphWidth(float available, float fontSize, float compact, float scale)
+    inline float CalculateGraphWidth(float available, float fontSize, float compact)
     {
         available = std::max(available, 1.0F);
-        const float automatic = std::lerp(available, std::min(available, fontSize * 8), compact);
-        return std::clamp(automatic * scale, 1.0F, available);
+        return std::lerp(available, std::min(available, fontSize * 8), compact);
+    }
+
+    inline float CalculateGraphHeight(float fontSize, float compact, float scale)
+    {
+        return std::max(1.0F, fontSize * std::lerp(3.5F, 1.2F, compact) * scale);
     }
 
     struct FlowLayout

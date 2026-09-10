@@ -29,7 +29,7 @@ namespace Overlay::Config
         float margin = 20.0F;
         float historySeconds = 10.0F;
         float graphCeiling = 50.0F;
-        float graphWidth = 1.0F;
+        float graphHeight = 1.0F;
         void Load();
         [[nodiscard]] bool Save() const;
     };

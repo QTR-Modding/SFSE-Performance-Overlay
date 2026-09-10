@@ -58,7 +58,7 @@ namespace Overlay::Config
             {L"Margin", &Settings::margin, 0, 200},
             {L"HistorySeconds", &Settings::historySeconds, 1, 60},
             {L"GraphCeiling", &Settings::graphCeiling, 8, 200},
-            {L"GraphWidth", &Settings::graphWidth, 0.25F, 3}
+            {L"GraphHeight", &Settings::graphHeight, 0.25F, 3}
         };
     }
 

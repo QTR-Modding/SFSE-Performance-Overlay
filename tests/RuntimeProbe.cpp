@@ -42,7 +42,7 @@ int main()
     requested.opacity = 0.37F;
     requested.scale = 1.25F;
     requested.layout = 0.75F;
-    requested.graphWidth = 1.75F;
+    requested.graphHeight = 1.75F;
     requested.adapter = -1;
     requested.cpuUsage = false;
     requested.fps = false;
@@ -55,7 +55,7 @@ int main()
     Overlay::Config::Settings actual;
     actual.Load();
     const bool valid = actual.opacity == requested.opacity && actual.scale == requested.scale &&
-        actual.graphWidth == requested.graphWidth &&
+        actual.graphHeight == requested.graphHeight &&
         actual.adapter == -1 && !actual.cpuUsage && !actual.fps && !actual.graph &&
         actual.corner == 3 && actual.gpuClock && actual.layout == requested.layout && !actual.followFrameworkTheme && !actual.showHeadings;
     T::Read(snapshot);

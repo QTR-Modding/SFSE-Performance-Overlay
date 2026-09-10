@@ -123,8 +123,8 @@ namespace Overlay::UI
             Changed(Gui::Checkbox("Peak frame time", &settings.peak));
             Changed(Gui::SliderFloat("History", &settings.historySeconds, 1, 60, "%.0f seconds"));
             Changed(Gui::SliderFloat("Graph ceiling", &settings.graphCeiling, 8, 200, "%.0f ms"));
-            Changed(Gui::SliderFloat("Graph width", &settings.graphWidth, 0.25F, 3, "%.2fx"));
-            Gui::TextWrapped("Graph width is limited to the space in its section. History and text size stay unchanged.");
+            Changed(Gui::SliderFloat("Graph height", &settings.graphHeight, 0.25F, 3, "%.2fx"));
+            Gui::TextWrapped("Changes the graph's height on screen. History, millisecond scale and text size stay unchanged.");
             Gui::TextWrapped("FPS measures framework render cadence, excluding generated frames. "
                 "The 1%% low is the reciprocal of the slowest 1%% average frame time over this history.");
             if (Gui::Button("Reset measurements")) {
@@ -302,12 +302,12 @@ namespace Overlay::UI
                 flow.Advance(width, Gui::GetItemRectSize().y);
             }
             if (section.graph) {
-                const float width = CalculateGraphWidth(available, font, compact, settings.graphWidth);
+                const float width = CalculateGraphWidth(available, font, compact);
                 const bool footer = compact < 0.5F;
                 const auto position = flow.Place(footer ? available : width);
                 Gui::SetCursorScreenPos({start.x + position.x, start.y + position.y});
                 Gui::BeginGroup();
-                Graph({width, font * std::lerp(3.5F, 1.2F, compact)}, footer);
+                Graph({width, CalculateGraphHeight(font, compact, settings.graphHeight)}, footer);
                 Gui::EndGroup();
                 flow.Advance(width, Gui::GetItemRectSize().y);
             }
