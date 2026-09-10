@@ -33,5 +33,6 @@ Clone recursively, then run `xmake f -m releasedbg` and `xmake` with Visual Stud
 C++ tools installed. Generate a Visual Studio solution with
 `xmake project -k vsxmake -m "debug,release,releasedbg"`.
 
-Licensed under GPL-3.0-only. SFSE-MCP is MIT licensed. NVIDIA's required notice
+Licensed under GPL-3.0-only. SFSE-MCP and its QTR signing helpers are MIT licensed;
+their notices are in `notices/`. NVIDIA's required notice
 is in [notices/NVIDIA.txt](notices/NVIDIA.txt).

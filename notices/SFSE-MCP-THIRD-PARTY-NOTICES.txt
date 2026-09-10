@@ -1,0 +1,121 @@
+Third-Party Notices
+===================
+
+CLibUtilsQTR signing module
+--------------------------
+Source: https://github.com/QTR-Modding/CLibUtilsQTR
+Copyright (c) 2025-2026 Quantumyilmaz, SkyrimThiago, RavenKZP
+License: MIT (permission and warranty terms below).
+The standalone SDK embeds the signing module and its license.
+
+Dear ImGui
+----------
+
+SFSE-MCP does not include, compile, or link a Dear ImGui implementation. Its
+header exposes the generated ImGui-compatible types and forwarding API used by
+the framework DLL.
+
+Version: 1.90.8
+Tag: v1.90.8-docking
+Tag object: 2ae16655a7072546bb23a3dfc8e1735cf0185b29
+Peeled source commit: 6d948ab47ecf984239af01434f3ed03808dbf188
+Source: https://github.com/ocornut/imgui
+Copyright (c) 2014-2024 Omar Cornut
+License: MIT
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+cimgui
+------
+
+The ImGuiMCP declarations, exported ig* names, and forwarding surface are based
+on cimgui-generated output retained by SKSE Menu Framework 3 at commit
+928e01ab459822a8d233ab99f0419ea1de23c775. The corresponding Dear ImGui input
+revision is identified above.
+
+Source: https://github.com/cimgui/cimgui
+Copyright (c) 2015 Stephan Dilly
+License: MIT
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+SKSE-MCP
+--------
+
+SFSE-MCP directly adapts SKSE-MCP's public header at the exact revision below,
+including its resolver pattern, section-key convention, high-level facade,
+generated ImGuiMCP types, and GetProcAddress forwarding bodies. In addition to
+the necessary SKSE-to-SFSE namespace, module, path, include, and package
+substitutions, this port corrects misspelled public type/export names, initializes
+and makes registration owners non-copyable, and adds failure/null checks.
+`AddWindowWithView` remains source-compatible; the Starfield host creates a
+normal framework window and currently ignores its view name because the pinned
+Skyrim host never implemented the referenced export.
+
+The later host ABI names and signatures for runtime rename/delete and
+API-version queries were checked against SKSE Menu Framework 3
+`resources/SKSEMenuFramework.h` at commit
+c8cfc5c93fa3b5f6261cef695ab814e4467dd980 (GPL-3.0-only):
+https://github.com/QTR-Modding/SKSE-Menu-Framework-3/blob/c8cfc5c93fa3b5f6261cef695ab814e4467dd980/resources/SKSEMenuFramework.h
+
+The full-path helper reuses the original `AddSectionItem` ABI. All four
+SFSE-MCP resolver wrappers are independently written in the existing MIT
+interoperability pattern and contain no menu-tree, parser, or other GPL host
+implementation.
+
+Source: https://github.com/QTR-Modding/SKSE-MCP
+Commit: 996e0215e98add566dbb98234bc81b8fe82abb52
+Copyright (c) 2024-2026 SkyrimThiago
+License: MIT
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+No menu-framework or Dear ImGui implementation is included in this repository.
