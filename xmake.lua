@@ -10,7 +10,7 @@ end)
 
 local name = "SFSE Performance Overlay"
 local dll = "SFSEPerformanceOverlay"
-local version = "0.1.0"
+local version = "1.0.0"
 local author = "Quantumyilmaz"
 
 set_project(name)
