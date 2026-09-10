@@ -32,7 +32,7 @@ target(dll, function()
     set_pcxxheader("src/PCH.h")
     add_files("src/**.cpp")
     add_headerfiles("src/**.h")
-    add_includedirs("src", "lib/sfse-mcp/include")
+    add_includedirs("src", "lib/sfse-mcp/include", "lib/sfse-mcp/lib/clib-utils-qtr/include")
     add_defines("NOMINMAX", "WIN32_LEAN_AND_MEAN",
                 "_SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING")
     add_syslinks("pdh", "gdi32", "dxgi", "crypt32", "shell32", "ole32")
