@@ -30,6 +30,8 @@ namespace Overlay::Config
             {L"Performance", L"Enabled", &Settings::enabled},
             {L"Appearance", L"FollowFrameworkTheme", &Settings::followFrameworkTheme},
             {L"Appearance", L"ShowHeadings", &Settings::showHeadings},
+            {L"BurnInProtection", L"Enabled", &Settings::burnInProtection},
+            {L"BurnInProtection", L"MinimalDecoration", &Settings::minimalDecoration},
             {L"Performance", L"FPS", &Settings::fps},
             {L"Performance", L"FrameTime", &Settings::frameTime},
             {L"Performance", L"Graph", &Settings::graph},
@@ -49,6 +51,7 @@ namespace Overlay::Config
             const wchar_t* key;
             float Settings::* value;
             float minimum, maximum;
+            const wchar_t* section = L"Performance";
         };
         constexpr Number numbers[] = {
             {L"Opacity", &Settings::opacity, 0, 1},
@@ -58,7 +61,10 @@ namespace Overlay::Config
             {L"Margin", &Settings::margin, 0, 200},
             {L"HistorySeconds", &Settings::historySeconds, 1, 60},
             {L"GraphCeiling", &Settings::graphCeiling, 8, 200},
-            {L"GraphHeight", &Settings::graphHeight, 0.25F, 3}
+            {L"GraphHeight", &Settings::graphHeight, 0.25F, 3},
+            {L"Brightness", &Settings::overlayBrightness, 0.25F, 1, L"BurnInProtection"},
+            {L"MovementRange", &Settings::movementRange, 0, 256, L"BurnInProtection"},
+            {L"MovementSpeed", &Settings::movementSpeed, 0.25F, 10, L"BurnInProtection"}
         };
     }
 
@@ -72,7 +78,7 @@ namespace Overlay::Config
         }
         for (const auto& field : numbers) {
             wchar_t buffer[64]{};
-            GetPrivateProfileStringW(L"Performance", field.key, L"", buffer, 64, path.c_str());
+            GetPrivateProfileStringW(field.section, field.key, L"", buffer, 64, path.c_str());
             if (!buffer[0]) continue;
             wchar_t* end{};
             const auto value = std::wcstof(buffer, &end);
@@ -96,7 +102,7 @@ namespace Overlay::Config
                 this->*field.value ? L"1" : L"0", path.c_str()) != FALSE && success;
         }
         for (const auto& field : numbers) {
-            success = WritePrivateProfileStringW(L"Performance", field.key,
+            success = WritePrivateProfileStringW(field.section, field.key,
                 std::to_wstring(this->*field.value).c_str(), path.c_str()) != FALSE && success;
         }
         success = WritePrivateProfileStringW(L"Performance", L"Corner",

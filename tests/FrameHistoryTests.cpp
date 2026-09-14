@@ -15,8 +15,13 @@ void Check(bool valid, const char* what)
     }
 }
 
+void TestBurnInProtection();
+void TestBurnInSettings();
+
 int main()
 {
+    TestBurnInProtection();
+    TestBurnInSettings();
     using Overlay::UI::CalculateLayout;
     Check(CalculateLayout(1920, 300, 0, 3, 1500).columns == 1, "vertical layout");
     Check(CalculateLayout(1920, 300, 0.25F, 3, 1500).columns == 2, "two-column reflow");
@@ -72,5 +77,5 @@ int main()
     history.Push(std::numeric_limits<double>::quiet_NaN(), 10);
     Check(history.Count() == 0, "nonfinite input rejected");
     history.Graph({}, 10);
-    std::cout << "Frame history tests passed\n";
+    std::cout << "Overlay tests passed\n";
 }

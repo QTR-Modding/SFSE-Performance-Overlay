@@ -10,7 +10,7 @@ end)
 
 local name = "SFSE Performance Overlay"
 local dll = "SFSEPerformanceOverlay"
-local version = "1.0.1"
+local version = "1.1.0"
 local author = "Quantumyilmaz"
 
 set_project(name)
@@ -47,8 +47,10 @@ end)
 target("overlay-tests", function()
     set_kind("binary")
     set_default(false)
-    add_files("tests/FrameHistoryTests.cpp", "src/performance/FrameHistory.cpp")
-    add_includedirs("src")
+    add_files("tests/FrameHistoryTests.cpp", "tests/BurnInProtectionTests.cpp",
+              "src/performance/FrameHistory.cpp", "src/ui/BurnInProtection.cpp", "src/config/Settings.cpp")
+    add_includedirs("src", "lib/sfse-mcp/include", "lib/sfse-mcp/lib/clib-utils-qtr/include")
+    add_defines("NOMINMAX", "WIN32_LEAN_AND_MEAN")
 end)
 
 target("telemetry-probe", function()
