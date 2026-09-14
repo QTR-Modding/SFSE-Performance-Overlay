@@ -1,5 +1,6 @@
 #include "ui/Overlay.h"
 #include "ui/Layout.h"
+#include "ui/BurnInProtection.h"
 #include "config/Settings.h"
 #include "performance/FrameHistory.h"
 #include "telemetry/Sampler.h"
@@ -25,6 +26,7 @@ namespace Overlay::UI
         LARGE_INTEGER frequency{}, lastCounter{};
         ULONGLONG lastSummary{}, changedAt{};
         bool dirty{};
+        BurnInMotion burnInMotion;
         constexpr Gui::ImVec4 cyan{0.43F, 0.83F, 0.92F, 1};
         constexpr Gui::ImVec4 muted{0.58F, 0.66F, 0.73F, 1};
 
@@ -160,6 +162,21 @@ namespace Overlay::UI
             Changed(Gui::Checkbox("Section headings", &settings.showHeadings));
             Changed(Gui::SliderFloat("Background opacity", &settings.opacity, 0, 1, "%.2f"));
             Changed(Gui::SliderFloat("Screen margin", &settings.margin, 0, 200, "%.0f px"));
+            Gui::SeparatorText("Burn-in protection");
+            Changed(Gui::Checkbox("Enable burn-in protection", &settings.burnInProtection));
+            Gui::BeginDisabled(!settings.burnInProtection);
+            float brightnessPercent = settings.overlayBrightness * 100;
+            if (Gui::SliderFloat("Overlay brightness", &brightnessPercent, 25, 100, "%.0f%%")) {
+                settings.overlayBrightness = brightnessPercent / 100;
+                Changed(true);
+            }
+            Changed(Gui::SliderFloat("Movement range", &settings.movementRange, 0, 256, "%.0f px"));
+            Changed(Gui::SliderFloat("Movement speed", &settings.movementSpeed, 0.25F, 10, "%.2f px/s"));
+            Changed(Gui::Checkbox("Minimal decoration", &settings.minimalDecoration));
+            Gui::EndDisabled();
+            Gui::TextWrapped("Moves the whole overlay inward from your chosen corner, within the available screen space. "
+                "Set range to zero for dimming only. Brightness is relative; background opacity stays separate.");
+            Gui::Spacing();
             if (Gui::Button("Restore defaults")) {
                 settings = {};
                 Changed(true);
@@ -247,7 +264,7 @@ namespace Overlay::UI
             const auto background = settings.followFrameworkTheme ? Gui::GetColorU32(Gui::ImGuiCol_FrameBg, 0.4F) : IM_COL32(4, 10, 18, 100);
             Draw::AddRectFilled(draw, start, {start.x + size.x, start.y + size.y}, background, 0, 0);
             const float reference = 16.667F;
-            if (reference < settings.graphCeiling) {
+            if (reference < settings.graphCeiling && !(settings.burnInProtection && settings.minimalDecoration)) {
                 const auto y = start.y + size.y * (1 - reference / settings.graphCeiling);
                 const auto guide = settings.followFrameworkTheme ? Gui::GetColorU32(Gui::ImGuiCol_Border, 0.5F) : IM_COL32(140, 170, 190, 70);
                 Draw::AddLine(draw, {start.x, y}, {start.x + size.x, y}, guide, 1);
@@ -330,6 +347,10 @@ namespace Overlay::UI
             }
             LARGE_INTEGER counter;
             QueryPerformanceCounter(&counter);
+            if (settings.burnInProtection && lastCounter.QuadPart != 0 && frequency.QuadPart > 0) {
+                burnInMotion.Advance(static_cast<double>(counter.QuadPart - lastCounter.QuadPart) /
+                    static_cast<double>(frequency.QuadPart), settings.movementRange, settings.movementSpeed);
+            }
             if (lastCounter.QuadPart != 0 && frequency.QuadPart > 0) {
                 history.Push(static_cast<double>(counter.QuadPart - lastCounter.QuadPart) * 1000 /
                     static_cast<double>(frequency.QuadPart), settings.historySeconds);
@@ -399,13 +420,17 @@ namespace Overlay::UI
             Gui::PushStyleVar(Gui::ImGuiStyleVar_WindowPadding, {fontSize * 0.6F, fontSize * 0.5F});
             Gui::PushStyleVar(Gui::ImGuiStyleVar_ItemSpacing, {fontSize * 0.4F, fontSize * 0.14F});
             Gui::PushStyleVar(Gui::ImGuiStyleVar_WindowRounding, fontSize * 0.25F);
+            const bool minimal = settings.burnInProtection && settings.minimalDecoration;
+            Gui::PushStyleVar(Gui::ImGuiStyleVar_WindowBorderSize, minimal ? 0.0F : Gui::GetStyle()->WindowBorderSize);
             constexpr auto flags = Gui::ImGuiWindowFlags_NoDecoration | Gui::ImGuiWindowFlags_AlwaysAutoResize |
                 Gui::ImGuiWindowFlags_NoInputs | Gui::ImGuiWindowFlags_NoSavedSettings |
                 Gui::ImGuiWindowFlags_NoFocusOnAppearing;
             if (Gui::Begin("Performance Overlay###SFSEPerformanceOverlay", nullptr, flags)) {
                 Gui::SetWindowFontScale(settings.scale);
                 Gui::PushStyleVar(Gui::ImGuiStyleVar_CellPadding, {layout.columns > 1 ? fontSize * 0.4F : 0, 0});
-                if (Gui::BeginTable("Sections", layout.columns, Gui::ImGuiTableFlags_SizingStretchProp | Gui::ImGuiTableFlags_BordersInnerV)) {
+                const auto tableFlags = Gui::ImGuiTableFlags_SizingStretchProp |
+                    (minimal ? 0 : Gui::ImGuiTableFlags_BordersInnerV);
+                if (Gui::BeginTable("Sections", layout.columns, tableFlags)) {
                     for (int i = 0; i < layout.columns; ++i) {
                         const float weight = layout.columns == sectionCount ?
                             std::lerp(fontSize * settings.width, sections[i].InlineWidth(), layout.compact) : 1.0F;
@@ -420,8 +445,20 @@ namespace Overlay::UI
                 }
                 Gui::PopStyleVar();
             }
+            auto* draw = Gui::GetWindowDrawList();
+            const auto windowPos = Gui::GetWindowPos();
+            const auto windowSize = Gui::GetWindowSize();
             Gui::End();
-            Gui::PopStyleVar(3);
+            if (settings.burnInProtection) {
+                const Offset available{
+                    right ? windowPos.x - margin : screen.x - margin - windowPos.x - windowSize.x,
+                    bottom ? windowPos.y - margin : screen.y - margin - windowPos.y - windowSize.y};
+                // Transform after layout: auto-sizing, wrapping and clipping stay together.
+                // This window has NoInputs and owns no child windows or draw callbacks.
+                ApplyBurnInProtection(*draw, burnInMotion.Displacement(settings.movementRange, available, right, bottom),
+                    settings.overlayBrightness);
+            }
+            Gui::PopStyleVar(4);
             if (ownTheme) Gui::PopStyleColor(5);
         }
     }

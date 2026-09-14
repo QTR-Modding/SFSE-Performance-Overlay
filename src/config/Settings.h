@@ -7,6 +7,8 @@ namespace Overlay::Config
         bool enabled = true;
         bool followFrameworkTheme = true;
         bool showHeadings = true;
+        bool burnInProtection = false;
+        bool minimalDecoration = true;
         bool fps = true;
         bool frameTime = true;
         bool graph = true;
@@ -27,6 +29,9 @@ namespace Overlay::Config
         float width = 18.0F;
         float layout = 0.0F;
         float margin = 20.0F;
+        float overlayBrightness = 0.65F;
+        float movementRange = 64.0F;
+        float movementSpeed = 1.0F;
         float historySeconds = 10.0F;
         float graphCeiling = 50.0F;
         float graphHeight = 1.0F;

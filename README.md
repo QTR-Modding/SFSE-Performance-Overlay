@@ -15,6 +15,12 @@ Hiding the overlay pauses hardware polling and frame measurements. Settings stil
 The overlay follows SFSE Menu Framework's colors by default. Turn off
 **Follow SFSE-MF theme** in Appearance to use its original dark palette instead.
 
+**Burn-in protection** in Appearance optionally dims and moves the whole overlay
+in two dimensions. Adjust its brightness, movement range and speed; travel is
+limited by available screen space. **Minimal decoration** hides the window border,
+section separators and graph guide. Background opacity stays independent.
+These options reduce static exposure, but do not guarantee against OLED burn-in.
+
 Requires SFSE and SFSE Menu Framework 0.15.0. Place the DLL in `Data/SFSE/Plugins`.
 Settings are saved to `Data/SFSE/Plugins/SFSEPerformanceOverlay.ini`.
 
