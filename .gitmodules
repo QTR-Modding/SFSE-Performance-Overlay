@@ -1,6 +1,3 @@
-[submodule "lib/commonlibsf"]
-	path = lib/commonlibsf
-	url = https://github.com/QTR-Modding/commonlibsf.git
 [submodule "lib/sfse-mcp"]
 	path = lib/sfse-mcp
 	url = https://github.com/QTR-Modding/SFSE-MCP.git
